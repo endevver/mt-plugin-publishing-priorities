@@ -1,0 +1,85 @@
+<mt:SetVarBlock name="screen_group">settings</mt:SetVarBlock>
+<mt:SetVarBlock name="page_title">Publishing Priorities</mt:SetVarBlock>
+
+<mt:Var name="position_actions_bottom" value="1">
+<mt:SetVarTemplate name="action_buttons">
+        <button
+            type="submit"
+            accesskey="s"
+            class="primary-button primary action button"
+            title="<__trans phrase="Save (s)">">
+            <__trans phrase="Save Priorities">
+        </button>
+</mt:SetVarTemplate>
+
+<mt:SetVarBlock name="system_msg">
+    <div id="msg-block">
+        <mt:if name="saved">
+            <mtapp:statusmsg
+                class="success">
+                Publishing priorities have been successfully saved.
+            </mtapp:statusmsg>
+        </mt:if>
+    </div>
+</mt:SetVarBlock>
+
+<mt:SetVarBlock name="form_header">
+    <form method="post" action="<mt:Var name="script_url">" target="_top">
+        <input type="hidden" name="__mode"   value="publishing_priorities.system_save" />
+        <input type="hidden" name="blog_ids" value="<mt:Loop name="blog_loop" glue=","><mt:Var name="id"></mt:Loop>" />
+</mt:SetVarBlock>
+
+<mt:Include name="include/header.tmpl">
+
+<p>
+    Prioritize each website or blog as it relates to other websites or blogs in
+    the system. Websites and blogs with higher visibility should likely have a
+    higher priority. This setting works as a gross adjustment at publish time.
+    Fine-tune priorities by clicking through to the template prioritizing screen.
+</p>
+
+<mt:Loop name="blog_loop">
+    <mt:SetVarBlock name="label">
+        <mt:Var name="name"><mt:If name="class" eq="website"> Website</mt:If>
+    </mt:SetVarBlock>
+    <mt:SetVarBlock name="hint">
+        Adjust this <mt:Var name="class">&rsquo;s
+        <a href="<mt:Var name="script_uri">?__mode=publishing_priorities.edit&blog_id=<mt:Var name="id">">template
+        priorities</a>.
+        <mt:If name="desc">Description: <mt:Var name="desc"></mt:If>
+    </mt:SetVarBlock>
+    <mtapp:Setting
+        label="$label"
+        id="blog-<mt:Var name="id">"
+        hint="<mt:Var name="hint">"
+        show_hint="1">
+
+        <select name="blog-<mt:Var name="id">" id="blog-<mt:Var name="id">">
+        <mt:For from="0" to="100" step="1">
+            <option value="<mt:Var name="__index__">"
+                <mt:If name="__index__" eq="$priority">selected="selected"</mt:If>
+                ><mt:Var name="__index__">
+            </option>
+        </mt:For>
+        </select>
+
+    </mtapp:Setting>
+</mt:Loop>
+
+<mt:Unless name="blog_loop">
+    <mtapp:statusmsg
+        class="warning">
+        No blog or website templates are set to use the Publish Queue, so no
+        priorities can be adjusted.
+    </mtapp:statusmsg>
+</mt:Unless>
+
+<mt:If name="blog_loop">
+    <mt:Include name="include/actions_bar.tmpl" bar_position="bottom" hide_pager="1">
+</mt:If>
+
+<mt:SetVarBlock name="form_footer">
+    </form>
+</mt:SetVarBlock>
+
+<mt:Include name="include/footer.tmpl">

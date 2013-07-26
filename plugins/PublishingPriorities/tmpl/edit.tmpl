@@ -1,0 +1,116 @@
+<mt:SetVarBlock name="screen_group">settings</mt:SetVarBlock>
+<mt:SetVarBlock name="page_title">Publishing Priorities</mt:SetVarBlock>
+
+<mt:Var name="position_actions_bottom" value="1">
+<mt:SetVarTemplate name="action_buttons">
+        <button
+            type="submit"
+            accesskey="s"
+            class="primary-button primary action button"
+            title="<__trans phrase="Save (s)">">
+            <__trans phrase="Save Priorities">
+        </button>
+</mt:SetVarTemplate>
+
+<mt:SetVarBlock name="system_msg">
+    <div id="msg-block">
+        <mt:if name="saved">
+            <mtapp:statusmsg
+                class="success">
+                Publishing priorities have been successfully saved.
+            </mtapp:statusmsg>
+        </mt:if>
+    </div>
+</mt:SetVarBlock>
+
+<mt:SetVarBlock name="form_header">
+    <form method="post" action="<mt:Var name="script_url">" target="_top">
+        <input type="hidden" name="__mode"   value="publishing_priorities.save" />
+        <input type="hidden" name="blog_id"  value="<mt:Var name="blog_id">" />
+        <input type="hidden" name="tmpl_ids" value="<mt:Loop name="tmpl_loop" glue=","><mt:Var name="id"></mt:Loop>" />
+</mt:SetVarBlock>
+
+<mt:Include name="include/header.tmpl">
+
+<mt:If name="tmpl_loop">
+    <mt:SetVarBlock name="hint">
+        Prioritize this <mt:Var name="blog_class"> as it relates to other blogs
+        or websites in the system. Websites and blogs with higher visibility
+        should likely have a higher priority. This setting works as a gross
+        adjustment at publish time.
+        <a href="<mt:Var name="script_uri">?__mode=publishing_priorities.system_edit">Adjust the priorities of all blogs</a>.
+    </mt:SetVarBlock>
+    <mtapp:Setting
+        label="<mt:Var name="blog_class" capitalize="1"> Relative Priority"
+        id="blog-relative-priority"
+        hint="$hint"
+        show_hint="1">
+        <select name="blog_priority"
+            id="blog_priority">
+        <mt:For from="0" to="100" step="1">
+            <option value="<mt:Var name="__index__">"
+                <mt:If name="__index__" eq="$blog_priority">selected="selected"</mt:If>
+                ><mt:Var name="__index__">
+            </option>
+        </mt:For>
+        </select>
+    </mtapp:Setting>
+    <p>
+        Adjust the publishing priority for each template. Only templates going
+        through the Publish Queue are prioritized.
+    </p>
+    <p>
+        Tips: In general, more important templates should be published with a higher
+        priority while less important templates should have a lower priority.
+        Priority is relative to other templates in the system: if there is only one
+        template to republish it can have a priority of 1 or 100; a higher priority
+        will not make it publish any faster.
+    </p>
+</mt:If>
+
+<mt:Loop name="tmpl_loop">
+    <mt:If name="type" ne="$last_type">
+        <h3>Template Type: <mt:Var name="type"></h3>
+    </mt:If>
+
+    <mtapp:Setting
+        label="$name"
+        id="tmpl-<mt:Var name="id">"
+        hint="Publishing to <code><mt:Var name="out"></code>. <mt:If name="is_preferred">This is the preferred template mapping for this archive type.</mt:If>"
+        show_hint="1">
+
+        <select name="tmpl-<mt:Var name="id">" id="tmpl-<mt:Var name="id">">
+        <mt:For from="1" to="100" step="1">
+            <option value="<mt:Var name="__index__">"
+                <mt:If name="__index__" eq="$priority">selected="selected"</mt:If>
+                ><mt:Var name="__index__">
+            </option>
+        </mt:For>
+        </select>
+
+    </mtapp:Setting>
+
+    <mt:Ignore>
+        Set the current type to last_type to correctly generate the header.
+    </mt:Ignore>
+    <mt:Var name="type" setvar="last_type">
+</mt:Loop>
+
+<mt:Unless name="tmpl_loop">
+    <mtapp:statusmsg
+        class="warning">
+        No templates are set to use the Publish Queue, so no priorities can be
+        adjusted. Visit the <a href="<mt:Var name="script_uri">?__mode=list_template&blog_id=<mt:Var name="blog_id">">Template listing screen</a> to change a
+        template&rsquo;s publish type.
+    </mtapp:statusmsg>
+</mt:Unless>
+
+<mt:If name="tmpl_loop">
+    <mt:Include name="include/actions_bar.tmpl" bar_position="bottom" hide_pager="1">
+</mt:If>
+
+<mt:SetVarBlock name="form_footer">
+    </form>
+</mt:SetVarBlock>
+
+<mt:Include name="include/footer.tmpl">

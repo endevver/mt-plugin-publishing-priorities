@@ -1,0 +1,61 @@
+key:            PublishingPriorities
+id:             PublishingPriorities
+name:           'Publishing Priorities'
+description:    'Fine tune the priority templates and blogs are published with.'
+author_name:    'Dan Wolfgang, Endevver'
+author_link:    http://endevver.com
+plugin_link:    https://github.com/endevver/mt-plugin-publishing-priorities
+version:        1.0.0
+
+init_app: PublishingPriorities::Plugin::init_app
+
+applications:
+    cms:
+        menus:
+            settings:publishing_priorities:
+                label: Publishing Priorities
+                mode:  publishing_priorities.edit
+                order: 500
+                view:
+                    - blog
+                    - website
+                permission: administer
+            settings:system_publishing_priorities:
+                label: Publishing Priorities
+                mode:  publishing_priorities.system_edit
+                order: 500
+                view:
+                    - system
+                permission: administer
+            # MT4
+            prefs:publishing_priorities:
+                label: Publishing Priorities
+                mode:  publishing_priorities.edit
+                order: 500
+                view:  blog
+                permission: administer
+            prefs:system_publishing_priorities:
+                label: Publishing Priorities
+                mode:  publishing_priorities.system_edit
+                order: 500
+                view:  system
+                permission: administer
+        methods:
+            publishing_priorities.edit:        PublishingPriorities::Plugin::edit
+            publishing_priorities.save:        PublishingPriorities::Plugin::save
+            publishing_priorities.system_edit: PublishingPriorities::Plugin::system_edit
+            publishing_priorities.system_save: PublishingPriorities::Plugin::system_save
+
+page_actions:
+    list_templates:
+        publishing_priorities:
+            label: 'Publishing Priorities'
+            mode: publishing_priorities.edit
+            order: 200
+            permission: administer
+
+settings:
+    template_priorities:
+        scope: system
+    blog_priorities:
+        scope: system
