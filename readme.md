@@ -15,6 +15,7 @@ This plugin provides the means to fine-tune a template's priority. Additionally,
 this plugin provides an option to make a gross adjustment to the entire blog's
 priority, useful to prioritize at a more global level.
 
+[ ![Publishing Priorities blog-level screenshot](https://raw.github.com/endevver/mt-plugin-publishing-priorities/master/documentation/thumb.jpg) ](https://raw.github.com/endevver/mt-plugin-publishing-priorities/master/documentation/screenshot.png)
 
 # Requirements
 
