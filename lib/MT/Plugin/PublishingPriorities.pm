@@ -1,9 +1,10 @@
 package MT::Plugin::PublishingPriorities;
 
-use parent qw( MT::Plugin );
-
 use strict;
 use warnings;
+use v5.10.1;
+
+use parent qw( MT::Plugin );
 
 use MT::PublishOption;
 use MT::Logger::Log4perl qw( get_logger l4mtdump :resurrect );
@@ -18,6 +19,66 @@ use Data::Printer {
             expand => 2,
 	},
 };
+
+sub load_async_templates {
+    my ($self, $blog_id ) = @_;
+    my $app               = MT->instance;
+    my $config            = $self->get_config_hash('system');
+    my $priorities        = $config->{template_priorities} || {};
+
+    my @tmpls;
+    my %tmpl_load_args = (
+        blog_id    => $blog_id,
+        build_type => MT::PublishOption::ASYNC(),
+    );
+
+    # Load index templates configured to use the Publish Queue.
+    my $iter = $app->model('template')->load_iter(
+        { %tmpl_load_args, type => 'index' },
+        { sort => [ { column => 'type', desc => 'DESC'},
+                    { column => 'name', } ] }
+    );
+
+    while ( my $tmpl = $iter->() ) {
+        push @tmpls, {
+            id       => $tmpl->id,
+            name     => $tmpl->name,
+            type     => 'Index',
+            out      => $tmpl->outfile,
+            priority => (    $priorities->{ $tmpl->id }
+                          // $self->_set_default_priority({ tmpl => $tmpl })),
+        };
+    }
+    
+    # Load archive templates configured to use the Publish Queue.
+    $iter = $app->model('templatemap')->load_iter(
+        \%tmpl_load_args,
+        { sort => [ { column => 'archive_type', },
+                    { column => 'is_preferred', desc => 'DESC' } ] }
+    );
+
+    while ( my $tmpl_map = $iter->() ) {
+        my $tmpl = $app->model('template')->load( $tmpl_map->template_id )
+            or next;
+
+        # Template ID and template map ID are combined to create a
+        # unique identifier.
+        my $key = $tmpl->id . ':' . $tmpl_map->id;
+
+        push @tmpls, {
+            id           => $key,
+            name         => $tmpl->name,
+            type         => $tmpl_map->archive_type,
+            out          => $tmpl_map->file_template,
+            is_preferred => $tmpl_map->is_preferred,
+            priority     => (    $priorities->{ $key }
+                              // $self->_set_default_priority({
+                                    tmpl => $tmpl, tmpl_map => $tmpl_map }) ),
+        };
+    }
+
+    return \@tmpls;
+}
 
 # These priorities come from Movable Type, and are the default values used by
 # it. They're a reasonable starting point and will provide some expected
