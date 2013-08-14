@@ -1,4 +1,4 @@
-package PublishingPriorities::Plugin;
+package MT::Plugin::PublishingPriorities;
 
 use parent qw( MT::Plugin );
 

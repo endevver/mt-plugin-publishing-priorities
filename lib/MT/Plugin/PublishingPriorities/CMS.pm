@@ -1,4 +1,4 @@
-package PublishingPriorities::CMS;
+package MT::Plugin::PublishingPriorities::CMS;
 
 use strict;
 use warnings;
