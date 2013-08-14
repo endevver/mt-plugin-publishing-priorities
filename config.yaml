@@ -47,10 +47,10 @@ applications:
                 view:  system
                 permission: administer
         methods:
-            publishing_priorities.edit:        PublishingPriorities::Plugin::edit
-            publishing_priorities.save:        PublishingPriorities::Plugin::save
-            publishing_priorities.system_edit: PublishingPriorities::Plugin::system_edit
-            publishing_priorities.system_save: PublishingPriorities::Plugin::system_save
+            publishing_priorities.edit:        PublishingPriorities::CMS::edit
+            publishing_priorities.save:        PublishingPriorities::CMS::save
+            publishing_priorities.system_edit: PublishingPriorities::CMS::system_edit
+            publishing_priorities.system_save: PublishingPriorities::CMS::system_save
 
 page_actions:
     list_templates:
