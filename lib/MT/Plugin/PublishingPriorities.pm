@@ -20,11 +20,96 @@ use Data::Printer {
 	},
 };
 
+# This replaces MT::WeblogPublisher::queue_build_file_filter_callback in order
+# to set user-specified priorities.
+sub callback_build_file_filter {
+    my ( $cb, %args ) = @_;
+    my $fi        = $args{file_info};
+    my $throttle  = MT::PublishOption::get_throttle($fi);
+    my $not_async = $throttle->{type} != MT::PublishOption::ASYNC() ? 1 : 0;
+    my $forced    = $args{force} ? 1 : 0;
+
+    return 1 if $fi->{from_queue};  # Async pub process. Don't requeue/report
+
+    if ( $forced || $not_async ) {
+        ###l4p get_logger()->debug(
+        ###l4p     join( ' ', 'PASS:', $fi->url,
+        ###l4p                ( $forced    ? 'FORCED'    : () ),
+        ###l4p                ( $not_async ? 'NOT ASYNC' : () )  )
+        ###l4p );
+        return 1;
+    }
+
+    require MT::TheSchwartz;
+    require TheSchwartz::Job;
+    my $job = TheSchwartz::Job->new();
+    $job->funcname('MT::Worker::Publish');
+    $job->uniqkey( $fi->id );
+
+    # Look at the fileinfo record's template ID and template map ID to
+    # determine how to prioritize this file.
+    my $id = $fi->template_id;
+    $id .= ':' . $fi->templatemap_id
+        if defined $fi->templatemap_id;
+
+    my $plugin = MT->component('PublishingPriorities');
+    my $priority = $plugin->template_priority( $id ) || 0;
+    unless ( $priority ) {
+        my $tmpl     = MT->model('template')->load( $fi->template_id );
+        my $tmpl_map
+            = MT->model('templatemap')->load( $fi->templatemap_id ) ||  {};
+
+        $priority  = $plugin->_set_default_priority({
+            tmpl     => $tmpl,
+            tmpl_map => $tmpl_map,
+        });
+    }
+
+    # Apply the blog priority adjustment. By default there is no change to
+    # priority and all blogs are weighted equally.
+    $priority += $plugin->blog_priority( $fi->blog_id ) || '0';
+
+    # FIXME This will be a problem if a template is already on the queue with a lower priority
+    # We should instead try to load the job, adjusting the priority if found
+    # Otherwise, then create it
+    $job->priority($priority);
+    $job->coalesce( ( $fi->blog_id || 0 ) . ':' 
+            . $$ . ':'
+            . $priority . ':'
+            . ( time - ( time % 10 ) ) );
+
+    my $rv = MT::TheSchwartz->insert($job);
+    ###l4p $rv && get_logger->info('Publishing job inserted for '.$fi->url);
+
+    return 0;
+}
+
+sub blog_priority     { shift->_priorities( 'blog',     @_ ) }
+sub template_priority { shift->_priorities( 'template', @_ ) }
+
+sub _priorities {
+    my ( $self, $type, $id, $pri ) = @_;
+    my $priorities
+        = $self->get_config_value("${type}_priorities",'system') || {};
+
+    # Single argument, hash reference: Set multiple
+    if ( ref $id eq 'HASH' ) {
+        $priorities->{$_} = $id->{$_} for keys %$id;
+        $self->set_config_value('${type}_priorities', $priorities);
+        return $id;
+    }
+
+    # One or two arguments: Get or set individual
+    if ( defined $pri ) {
+        $priorities->{$id} = $pri;
+        $self->set_config_value('${type}_priorities', $priorities);
+    }
+    return $priorities->{$id};
+}
+
 sub load_async_templates {
-    my ($self, $blog_id ) = @_;
-    my $app               = MT->instance;
-    my $config            = $self->get_config_hash('system');
-    my $priorities        = $config->{template_priorities} || {};
+    my ( $self, $blog_id ) = @_;
+    my $app                = MT->instance;
 
     my @tmpls;
     my %tmpl_load_args = (
@@ -45,7 +130,7 @@ sub load_async_templates {
             name     => $tmpl->name,
             type     => 'Index',
             out      => $tmpl->outfile,
-            priority => (    $priorities->{ $tmpl->id }
+            priority => (    $self->template_priority( $tmpl->id )
                           // $self->_set_default_priority({ tmpl => $tmpl })),
         };
     }
@@ -71,7 +156,7 @@ sub load_async_templates {
             type         => $tmpl_map->archive_type,
             out          => $tmpl_map->file_template,
             is_preferred => $tmpl_map->is_preferred,
-            priority     => (    $priorities->{ $key }
+            priority     => (    $self->template_priority( $key )
                               // $self->_set_default_priority({
                                     tmpl => $tmpl, tmpl_map => $tmpl_map }) ),
         };
@@ -135,85 +220,6 @@ sub _set_default_priority {
     }
 
     return $priority;
-}
-
-# The Publishing Prioritis callback runs before the default (in
-# MT::WeblogPublisher::queue_build_file_filter_callback), effectively taking
-# over sending to the Publish Queue in order to set user-specified priorities.
-sub callback_build_file_filter {
-    my ( $cb, %args ) = @_;
-    my $fi        = $args{file_info};
-    my $throttle  = MT::PublishOption::get_throttle($fi);
-    my $not_async = $throttle->{type} != MT::PublishOption::ASYNC() ? 1 : 0;
-    my $forced    = $args{force} ? 1 : 0;
-
-    return 1 if $fi->{from_queue};  # Async pub process. Don't requeue/report
-
-    if ( $forced || $not_async ) {
-        ###l4p get_logger()->debug(
-        ###l4p     join( ' ', 'PASS:', $fi->url,
-        ###l4p                ( $forced    ? 'FORCED'    : () ),
-        ###l4p                ( $not_async ? 'NOT ASYNC' : () )  )
-        ###l4p );
-        return 1;
-    }
-
-    require MT::TheSchwartz;
-    require TheSchwartz::Job;
-    my $job = TheSchwartz::Job->new();
-    $job->funcname('MT::Worker::Publish');
-    $job->uniqkey( $fi->id );
-
-    # Look at the fileinfo record's template ID and template map ID to
-    # determine how to prioritize this file.
-    my $id = $fi->template_id;
-    $id .= ':' . $fi->templatemap_id
-        if defined $fi->templatemap_id;
-
-    # Priorities are saved in the plugin settings.
-    my $plugin = MT->component('PublishingPriorities');
-    my $config = $plugin->get_config_hash('system');
-    my $blog_priorities = $config->{blog_priorities};
-    my $tmpl_priorities = $config->{template_priorities};
-
-    # Set the template priority based on the saved value. If no saved value
-    # exists then fall back to the default values.
-    my $priority = 0;
-    if ( $tmpl_priorities->{ $id } ) {
-        $priority = $tmpl_priorities->{ $id };
-    }
-    else {
-        ###l4p get_logger->debug( 'Publishing Priorities could not find a '
-        ###l4p                  . 'saved priority for this template; using '
-        ###l4p                  .'a default. ID: '.$id );
-        my $tmpl = MT->model('template')->load( $fi->template_id );
-        my $tmpl_map = MT->model('templatemap')->load( $fi->templatemap_id )
-            ||  {};
-
-        my $plugin = MT->instance->component('PublishingPriorities');
-        $priority  = $plugin->_set_default_priority({
-            tmpl     => $tmpl,
-            tmpl_map => $tmpl_map,
-        });
-    }
-
-    # Apply the blog priority adjustment. By default there is no change to
-    # priority and all blogs are weighted equally.
-    $priority += $blog_priorities->{ $fi->blog_id } || '0';
-
-    # FIXME This will be a problem if a template is already on the queue with a lower priority
-    # We should instead try to load the job, adjusting the priority if found
-    # Otherwise, then create it
-    $job->priority($priority);
-    $job->coalesce( ( $fi->blog_id || 0 ) . ':' 
-            . $$ . ':'
-            . $priority . ':'
-            . ( time - ( time % 10 ) ) );
-
-    my $rv = MT::TheSchwartz->insert($job);
-    ###l4p $rv && get_logger->info('Publishing job inserted for '.$fi->url);
-
-    return 0;
 }
 
 1;

@@ -17,17 +17,12 @@ sub edit {
     return $app->redirect( $app->mt_uri . '?__mode=dashboard&blog_id=0' )
         unless $blog_id;
 
-    # Priorities are saved in the plugin settings.
-    my $config          = $plugin->get_config_hash('system');
-    my $blog_priorities = $config->{blog_priorities} || {};
-
-    # Create page parameters
     my $param   = {
         blog_class    => 'blog',
         blog_id       => $blog_id,
         tmpl_loop     => ($plugin->load_async_templates( $blog_id ) || []),
         # blog priority is a gross adjustment of priority.
-        blog_priority => $blog_priorities->{ $blog_id },
+        blog_priority => $plugin->blog_priority( $blog_id ),
     };
 
     # Update blog_class for MT5 if appropriate (has both Blogs and Websites)
@@ -41,29 +36,23 @@ sub edit {
 
 # Save the template publishing priorities
 sub save {
-    my $app     = shift;
-    my $q       = $app->can('query') ? $app->query : $app->param;
-    my $blog_id = $q->param('blog_id');
-    my $plugin  = $app->component('PublishingPriorities');
-
-    my $blog_priorities
-        = $plugin->get_config_value('blog_priorities', 'system');
-    my $tmpl_priorities
-        = $plugin->get_config_value('template_priorities', 'system');
+    my $app      = shift;
+    my $q        = $app->can('query') ? $app->query : $app->param;
+    my $blog_id  = $q->param('blog_id');
+    my $blog_pri = $q->param('blog_priority');
+    my $tmpls    = $q->param('tmpl_ids');
+    my $plugin   = $app->component('PublishingPriorities');
 
     # Set the blog priority.
-    $blog_priorities->{ $blog_id } = $q->param("blog_priority");
-    $plugin->set_config_value('blog_priorities', $blog_priorities);
+    $plugin->blog_priority( $blog_id, $blog_pri ) if $blog_pri;
 
-    # The `tmpl_ids` query parameter contains the ids of all templates being
-    # edited.
-    my @tmpl_ids = split( ',', $q->param('tmpl_ids') );
-    foreach my $tmpl_id (@tmpl_ids) {
-        $tmpl_priorities->{ $tmpl_id } = $q->param('tmpl-'.$tmpl_id);
+    # The `tmpl_ids` parameter contains array of ids being edited (CSV)
+    if ( $tmpls ) {
+        $plugin->template_priority(
+            map {  $_ => $q->param('tmpl-'.$_) } split( ',', $tmpls )
+        );
     }
 
-    $plugin->set_config_value('template_priorities', $tmpl_priorities);
-    
     # Redirect back to the Edit screen.
     $app->redirect(
         $app->{cfg}->CGIPath . $app->{cfg}->AdminScript
@@ -79,10 +68,6 @@ sub system_edit {
     my $param   = {};
 
     $param->{saved} = $q->param('saved');
-
-    # Priorities are saved in the plugin settings.
-    my $config  = $plugin->get_config_hash('system');
-    my $blog_priorities = $config->{blog_priorities};
 
     # MT5 should return both websites and blogs, while MT4 returns blogs only.
     my $terms = {};
@@ -127,7 +112,7 @@ sub system_edit {
                 name     => $blog->name,
                 desc     => $blog->description,
                 class    => $blog->has_column('class') ? $blog->class : 'blog',
-                priority => $blog_priorities->{ $blog->id },
+                priority => $plugin->blog_priority( $blog->id ),
             };
         }
     }
@@ -140,19 +125,15 @@ sub system_edit {
 sub system_save {
     my $app     = shift;
     my $q       = $app->can('query') ? $app->query : $app->param;
+    my $bids    = $q->param('blog_ids');
     my $plugin  = $app->component('PublishingPriorities');
 
-    my $blog_priorities
-        = $plugin->get_config_value('blog_priorities', 'system');
-
-    # The `blog_ids` query parameter contains the ids of all blogs/websites
-    # being edited.
-    my @blog_ids = split( ',', $q->param('blog_ids') );
-    foreach my $blog_id (@blog_ids) {
-        $blog_priorities->{ $blog_id } = $q->param('blog-'.$blog_id);
+    # The `blog_ids` parameter contains array of ids being edited (CSV)
+    if ( $bids ) {
+        $plugin->blog_priority(
+            map {  $_ => $q->param('blog-'.$_) } split( ',', $bids )
+        );
     }
-
-    $plugin->set_config_value('blog_priorities', $blog_priorities);
 
     # Redirect back to the Edit screen.
     $app->redirect(
@@ -162,3 +143,4 @@ sub system_save {
 }
 
 1;
+
