@@ -1,5 +1,14 @@
 package MT::Plugin::PublishingPriorities;
 
+=head1 NAME
+
+MT::Plugin::PublishingPriorities
+
+=head1 DESCRIPTION
+
+Plugin class for the Publishing Priorities plugin.
+
+=cut
 use strict;
 use warnings;
 use v5.10.1;
@@ -20,8 +29,14 @@ use Data::Printer {
 	},
 };
 
-# This replaces MT::WeblogPublisher::queue_build_file_filter_callback in order
-# to set user-specified priorities.
+=head1 CALLBACK HANDLERS
+
+=head2 callback_build_file_filter
+
+This replaces MT::WeblogPublisher::queue_build_file_filter_callback in order
+to set user-specified priorities.
+
+=cut
 sub callback_build_file_filter {
     my ( $cb, %args ) = @_;
     my $fi        = $args{file_info};
@@ -84,7 +99,31 @@ sub callback_build_file_filter {
     return 0;
 }
 
+=head1 INSTANCE METHODS
+
+=head2 blog_priority( $blog_id[, $priority ] )
+
+=head2 blog_priority( \%priorities )
+
+This plugin instance method is used for getting or setting one or more blog
+priorities:
+
+    my $plugin = $app->component('PublishingPriorities');
+    $plugin->blog_priority( $blog_id );            # Gets priority for $blog_id
+    $plugin->blog_priority( $blog_id, $priority ); # Sets priority for $blog_id
+    $plugin->blog_priority( \%blog_priorities );   # Sets priority for many
+                                                   #  blogs ( ID => PRI, ID => PRI )
+=cut
 sub blog_priority     { shift->_priorities( 'blog',     @_ ) }
+
+=head2 template_priority( $tmpl_id[, $priority ] )
+
+=head2 template_priority( \%priorities )
+
+This plugin instance method is used for getting or setting one or more template
+priorities.  Syntax mirrors that of the L<blog_priority> method.
+
+=cut
 sub template_priority { shift->_priorities( 'template', @_ ) }
 
 sub _priorities {
@@ -107,6 +146,12 @@ sub _priorities {
     return $priorities->{$id};
 }
 
+=head2 load_async_templates( $blog_id )
+
+Plugin instance method used to retrieve all index and archive templates for
+a particular blog which are configured to be published using the Publish Queue.
+
+=cut
 sub load_async_templates {
     my ( $self, $blog_id ) = @_;
     my $app                = MT->instance;
