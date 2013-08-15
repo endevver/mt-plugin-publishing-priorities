@@ -5,9 +5,15 @@ description:    'Fine tune the priority templates and blogs are published with.'
 author_name:    'Dan Wolfgang, Endevver'
 author_link:    http://endevver.com
 plugin_link:    https://github.com/endevver/mt-plugin-publishing-priorities
-version:        1.0.0
+version:        1.0.1
 
-init_app: PublishingPriorities::Plugin::init_app
+callbacks:
+    # The default build_file_filter callback that handles sending items to the
+    # Publish Queue uses the default priority, 5. Setting a higher priority will
+    # ensure Publishing Priorities build_file_filter callback runs first.
+    build_file_filter:
+        handler: PublishingPriorities::Plugin::callback_build_file_filter
+        priority: 4
 
 applications:
     cms:

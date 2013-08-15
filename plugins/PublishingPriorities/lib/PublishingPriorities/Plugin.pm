@@ -299,10 +299,10 @@ sub system_save {
     );
 }
 
-# This replaces MT::WeblogPublisher::queue_build_file_filter_callback in order
-# to set user-specified priorities.
+# The Publishing Prioritis callback runs before the default (in
+# MT::WeblogPublisher::queue_build_file_filter_callback), effectively taking
+# over sending to the Publish Queue in order to set user-specified priorities.
 sub callback_build_file_filter {
-    my $mt = shift;
     my ( $cb, %args ) = @_;
 
     my $fi = $args{file_info};
@@ -375,22 +375,6 @@ sub callback_build_file_filter {
     MT::TheSchwartz->insert($job);
 
     return 0;
-}
-
-# MT::WeblogPublisher::queue_build_file_filter needs to be overridden with our
-# own prioritization scheme.
-sub init_app {
-    my ( $plugin, $app, $params ) = @_;
-
-    # Exit if this is an upgrade or install.
-    return if $app->id eq 'upgrade' || $app->id eq 'wizard';
-
-    require Sub::Install;
-    Sub::Install::reinstall_sub( {
-        code => \&callback_build_file_filter,
-        into => 'MT::WeblogPublisher',
-        as   => 'queue_build_file_filter'
-    });
 }
 
 1;
