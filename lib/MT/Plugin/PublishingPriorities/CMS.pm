@@ -14,8 +14,10 @@ sub edit {
 
     # No blog was found, so this must be the system level. Just go to the
     # System Dashboard.
-    return $app->redirect( $app->mt_uri . '?__mode=dashboard&blog_id=0' )
-        unless $blog_id;
+    unless ( $blog_id ) {
+        return $app->redirect(
+            $app->uri( mode => 'dashboard', args => { blog_id => 0 } ) );
+    }
 
     my $param   = {
         blog_class    => 'blog',
@@ -55,8 +57,8 @@ sub save {
 
     # Redirect back to the Edit screen.
     $app->redirect(
-        $app->{cfg}->CGIPath . $app->{cfg}->AdminScript
-        . "?__mode=publishing_priorities.edit&blog_id=" . $blog_id . "&saved=1"
+        $app->uri( mode => 'publishing_priorities.edit',
+                   args    => { blog_id => $blog_id, saved => 1 } )
     );
 }
 
@@ -137,8 +139,8 @@ sub system_save {
 
     # Redirect back to the Edit screen.
     $app->redirect(
-        $app->{cfg}->CGIPath . $app->{cfg}->AdminScript
-        . "?__mode=publishing_priorities.system_edit&blog_id=0&saved=1"
+        $app->uri( mode => 'publishing_priorities.edit',
+                   args    => { blog_id => 0, saved => 1 } )
     );
 }
 
