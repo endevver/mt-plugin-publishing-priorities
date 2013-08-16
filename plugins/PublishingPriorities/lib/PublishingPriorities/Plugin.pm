@@ -375,6 +375,9 @@ sub callback_build_file_filter {
     # priority and all blogs are weighted equally.
     $priority += $blog_priorities->{ $fi->blog_id } || '0';
 
+    # FIXME This will be a problem if a template is already on the queue with a lower priority
+    # We should instead try to load the job, adjusting the priority if found
+    # Otherwise, then create it
     $job->priority($priority);
     $job->coalesce( ( $fi->blog_id || 0 ) . ':' 
             . $$ . ':'
