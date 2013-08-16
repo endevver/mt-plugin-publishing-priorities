@@ -4,6 +4,19 @@ use strict;
 use warnings;
 
 use MT::PublishOption;
+use MT::Logger::Log4perl qw( get_logger l4mtdump :resurrect );
+
+use Data::Printer {
+    colored      => 'auto',
+    deparse      => 1,
+    sort_keys    => 1,
+    return_value => 'dump',
+    caller_info  => 1,
+    output       => 'stderr',
+    class        => {
+            expand => 2,
+	},
+};
 
 # List/edit the publishing priorities for a blog.
 sub edit {
@@ -304,13 +317,16 @@ sub system_save {
 # over sending to the Publish Queue in order to set user-specified priorities.
 sub callback_build_file_filter {
     my ( $cb, %args ) = @_;
+    my $logger = get_logger(); $logger->trace();
 
     my $fi = $args{file_info};
+    ###l4p $logger->debug( 'Skipping (return:1) queued template '.$fi->url) if $fi->{from_queue};
 
     # This file is already in the PQ.
     return 1 if $fi->{from_queue};
 
     my $throttle = MT::PublishOption::get_throttle($fi);
+    ###l4p $logger->debug( 'Skipping (return:0) disabled template '.$fi->url) if $throttle->{type} == MT::PublishOption::DISABLED();
 
     # Prevent building of disabled templates if they get this far
     return 0 if $throttle->{type} == MT::PublishOption::DISABLED();
@@ -319,12 +335,16 @@ sub callback_build_file_filter {
     # forces the template to build; used for 'rebuild' list actions
     # and publish site operations
     if ( $throttle->{type} == MT::PublishOption::MANUALLY() ) {
+	###l4p $logger->debug( 'Skipping (return:'.($args{force} ? 1 : 0).') manual template '.$fi->url);
         return $args{force} ? 1 : 0;
     }
+
+    ###l4p $logger->debug( 'Skipping (return:1) non-ASYNC template '.$fi->url) if $throttle->{type} != MT::PublishOption::ASYNC();
 
     # From here on, we're committed to publishing this file via TheSchwartz
     return 1 if $throttle->{type} != MT::PublishOption::ASYNC();
 
+    ###l4p $logger->debug( 'Skipping (return:1) forced template '.$fi->url) if $args{force};
     return 1 if $args{force};    # if async, but force is used, publish
 
     require MT::TheSchwartz;
@@ -352,6 +372,7 @@ sub callback_build_file_filter {
         $priority = $tmpl_priorities->{ $id };
     }
     else {
+	$logger->debug('Publishing Priorities could not find a saved priority for this template; using a default. ID: '.$id);
         my $tmpl = MT->model('template')->load( $fi->template_id );
         my $tmpl_map = MT->model('templatemap')->load( $fi->templatemap_id )
             ||  {};
@@ -372,7 +393,8 @@ sub callback_build_file_filter {
             . $priority . ':'
             . ( time - ( time % 10 ) ) );
 
-    MT::TheSchwartz->insert($job);
+    my $rv = MT::TheSchwartz->insert($job);
+    ###l4p $logger->info('Publishing job inserted for '.$fi->url) if $rv;
 
     return 0;
 }
