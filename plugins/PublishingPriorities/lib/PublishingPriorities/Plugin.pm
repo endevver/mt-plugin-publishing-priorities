@@ -317,35 +317,21 @@ sub system_save {
 # over sending to the Publish Queue in order to set user-specified priorities.
 sub callback_build_file_filter {
     my ( $cb, %args ) = @_;
-    my $logger = get_logger(); $logger->trace();
+    my $fi        = $args{file_info};
+    my $throttle  = MT::PublishOption::get_throttle($fi);
+    my $not_async = $throttle->{type} != MT::PublishOption::ASYNC() ? 1 : 0;
+    my $forced    = $args{force} ? 1 : 0;
 
-    my $fi = $args{file_info};
-    ###l4p $logger->debug( 'Skipping (return:1) queued template '.$fi->url) if $fi->{from_queue};
+    return 1 if $fi->{from_queue};  # Async pub process. Don't requeue/report
 
-    # This file is already in the PQ.
-    return 1 if $fi->{from_queue};
-
-    my $throttle = MT::PublishOption::get_throttle($fi);
-    ###l4p $logger->debug( 'Skipping (return:0) disabled template '.$fi->url) if $throttle->{type} == MT::PublishOption::DISABLED();
-
-    # Prevent building of disabled templates if they get this far
-    return 0 if $throttle->{type} == MT::PublishOption::DISABLED();
-
-    # Check for 'force' flag for 'manual' publish option, which
-    # forces the template to build; used for 'rebuild' list actions
-    # and publish site operations
-    if ( $throttle->{type} == MT::PublishOption::MANUALLY() ) {
-	###l4p $logger->debug( 'Skipping (return:'.($args{force} ? 1 : 0).') manual template '.$fi->url);
-        return $args{force} ? 1 : 0;
+    if ( $forced || $not_async ) {
+        ###l4p get_logger()->debug(
+        ###l4p     join( ' ', 'PASS:', $fi->url,
+        ###l4p                ( $forced    ? 'FORCED'    : () ),
+        ###l4p                ( $not_async ? 'NOT ASYNC' : () )  )
+        ###l4p );
+        return 1;
     }
-
-    ###l4p $logger->debug( 'Skipping (return:1) non-ASYNC template '.$fi->url) if $throttle->{type} != MT::PublishOption::ASYNC();
-
-    # From here on, we're committed to publishing this file via TheSchwartz
-    return 1 if $throttle->{type} != MT::PublishOption::ASYNC();
-
-    ###l4p $logger->debug( 'Skipping (return:1) forced template '.$fi->url) if $args{force};
-    return 1 if $args{force};    # if async, but force is used, publish
 
     require MT::TheSchwartz;
     require TheSchwartz::Job;
@@ -372,7 +358,9 @@ sub callback_build_file_filter {
         $priority = $tmpl_priorities->{ $id };
     }
     else {
-	$logger->debug('Publishing Priorities could not find a saved priority for this template; using a default. ID: '.$id);
+        ###l4p get_logger->debug( 'Publishing Priorities could not find a '
+        ###l4p                  . 'saved priority for this template; using '
+        ###l4p                  .'a default. ID: '.$id );
         my $tmpl = MT->model('template')->load( $fi->template_id );
         my $tmpl_map = MT->model('templatemap')->load( $fi->templatemap_id )
             ||  {};
@@ -394,7 +382,7 @@ sub callback_build_file_filter {
             . ( time - ( time % 10 ) ) );
 
     my $rv = MT::TheSchwartz->insert($job);
-    ###l4p $logger->info('Publishing job inserted for '.$fi->url) if $rv;
+    ###l4p $rv && get_logger->info('Publishing job inserted for '.$fi->url);
 
     return 0;
 }
