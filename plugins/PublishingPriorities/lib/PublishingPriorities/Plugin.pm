@@ -391,3 +391,33 @@ sub callback_build_file_filter {
 }
 
 1;
+
+__END__
+
+build_file_filter callback args:
+
+    For indexes:
+        %args = (
+            archive_type => 'index',
+            blog         => $blog,
+            context      => $ctx,
+            file         => $file,
+            file_info    => $finfo,
+            force        => $force,
+            template     => $tmpl,
+        )
+
+    For archives
+        %args = (
+            archive_type => $at,
+            blog         => $blog,
+            category     => $category,
+            context      => $ctx,
+            entry        => $entry,
+            file         => $file,
+            file_info    => $finfo,
+            force        => $force,
+            period_start => $start,
+            template     => $tmpl,
+            template_map => $map,
+        )
