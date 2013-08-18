@@ -74,7 +74,7 @@ sub callback_build_file_filter {
         my $tmpl_map
             = MT->model('templatemap')->load( $fi->templatemap_id ) ||  {};
 
-        $priority  = $plugin->_set_default_priority({
+        $priority  = $plugin->_default_template_priority({
             tmpl     => $tmpl,
             tmpl_map => $tmpl_map,
         });
@@ -251,7 +251,7 @@ sub _load_async_templatemaps {
 # These priorities come from Movable Type, and are the default values used by
 # it. They're a reasonable starting point and will provide some expected
 # behavior, so we'll stick with them.
-sub _set_default_priority {
+sub _default_template_priority {
     my $self      = shift;
     my ($arg_ref) = @_;
     my $tmpl      = $arg_ref->{tmpl};

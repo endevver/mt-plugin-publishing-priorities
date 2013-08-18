@@ -30,8 +30,8 @@ sub edit {
                 name     => $t->name,
                 out      => $t->outfile,
                 priority
-                    => (    $plugin->template_priority( $t->id )
-                         // $plugin->_set_default_priority({ tmpl => $t }) ),
+                    => (   $plugin->template_priority( $t->id )
+                        // $plugin->_default_template_priority({tmpl => $t})),
             });
         }
         elsif ( $t->isa('MT::TemplateMap') ) {
@@ -48,7 +48,7 @@ sub edit {
                 out          => $t->file_template,
                 is_preferred => $t->is_preferred,
                 priority     => (    $plugin->template_priority( $key )
-                                  // $plugin->_set_default_priority({
+                                  // $plugin->_default_template_priority({
                                           tmpl => $tmpl, tmpl_map => $t }) ),
             });
         }
