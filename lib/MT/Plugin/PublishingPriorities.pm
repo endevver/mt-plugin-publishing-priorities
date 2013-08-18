@@ -146,6 +146,54 @@ sub _priorities {
     return $priorities->{$id};
 }
 
+=head2 load_async_blogs()
+
+=cut
+sub load_async_blogs {
+    my $self = shift;
+    my $app  = MT->instance;
+
+    # Default blog load terms/sort args. Fine for MT 4.
+    my ( $terms, $args ) = ( {}, { sort => [ { column => 'name' } ] } );
+
+    # But MT 5 needs some tweaks...
+    if ( $app->product_version =~ /^5/ ) {
+        $terms->{class} = '*';          # Return blogs *and* websites
+        unshift @{ $args->{sort} }, {   # Sort the website first, then blogs.
+            column => 'class',
+            desc   => 'DESC',
+        };
+    }
+
+    my $iter = $app->model('blog')->load_iter( $terms, $args );
+
+    my @blogs;
+    while ( my $blog = $iter->() ) {
+        push( @blogs, $blog ) if $self->blog_uses_async($blog);
+    }
+
+    return \@blogs;
+}
+
+=head2 blog_uses_async
+
+A filtering/extraction subref which checks if a specified blog's index
+or archive templates use the Publish Queue and, if so, returns 
+pertinent info about the blog.
+
+=cut
+sub blog_uses_async {
+    my ( $self, $blog ) = @_;
+    my $app             = MT->instance;
+    my %pq_args         = ( blog_id    => $blog->id,
+                            build_type => MT::PublishOption::ASYNC() );
+    return ( # boolean
+           $app->model('template')->exist(    { %pq_args, type => 'index'} )
+        || $app->model('templatemap')->exist( \%pq_args )
+    );
+}
+
+
 =head2 load_async_templates( $blog_id )
 
 Plugin instance method used to retrieve all index and archive templates for

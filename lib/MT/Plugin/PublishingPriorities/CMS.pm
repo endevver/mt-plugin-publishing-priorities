@@ -64,74 +64,34 @@ sub save {
 
 # List/edit the publishing priorities for a blog. (System level settings)
 sub system_edit {
-    my $app     = shift;
-    my $q       = $app->can('query') ? $app->query : $app->param;
-    my $plugin  = $app->component('PublishingPriorities');
-    my $param   = {};
-
-    $param->{saved} = $q->param('saved');
-
-    # MT5 should return both websites and blogs, while MT4 returns blogs only.
-    my $terms = {};
-    my @args_sort;
-    if ($app->product_version =~ /^5/) {
-        $terms->{class} = '*'; # Blogs and websites
-        push @args_sort, {     # Sort the website first, then blogs.
-            column => 'class',
-            desc   => 'DESC',
-        };
-    }
-    
-    # Sort blogs by name in MT4 and MT5. In MT5, this sorts blogs after
-    # websites.
-    push @args_sort, { column => 'name' };
-
-    my $iter = $app->model('blog')->load_iter(
-        $terms,
-        { sort => \@args_sort, }
-    );
-
-    my @blogs;
-    while ( my $blog = $iter->() ) {
-        # Check if this blog has any templates set to use the Publish queue.
-        # If there are any, add this blog to the @blogs array to be available
-        # for editing.
-        if (
-            # Check if any index templates use the PQ
-            $app->model('template')->exist({
-                blog_id    => $blog->id,
-                type       => 'index',
-                build_type => MT::PublishOption::ASYNC(),
-            })
-            # Check for any archive templates set to use the PQ
-            || $app->model('templatemap')->exist({
-                blog_id    => $blog->id,
-                build_type => MT::PublishOption::ASYNC(),
-            })
-        ) {
-            push @blogs, {
-                id       => $blog->id,
-                name     => $blog->name,
-                desc     => $blog->description,
-                class    => $blog->has_column('class') ? $blog->class : 'blog',
-                priority => $plugin->blog_priority( $blog->id ),
-            };
+    my $app    = shift;
+    my $q      = $app->can('query') ? $app->query : $app->param;
+    my $saved  = $q->param('saved');
+    my $plugin = $app->component('PublishingPriorities');
+    my @async  = map {
+        {
+            id       => $_->id,
+            name     => $_->name,
+            desc     => $_->description,
+            priority => $plugin->blog_priority( $_->id ),
+            class    => $_->has_column('class') ? $_->class : 'blog',
         }
-    }
-    $param->{blog_loop} = \@blogs;
+      } @{ $plugin->load_async_blogs() };
 
-    return $plugin->load_tmpl('system_edit.tmpl', $param);
+    return $plugin->load_tmpl('system_edit.tmpl', {
+        blog_loop => \@async,
+        $saved ? ( saved => $saved ) : ()
+    });
 }
 
 # Save the system-level publishing priorities overview.
 sub system_save {
     my $app     = shift;
     my $q       = $app->can('query') ? $app->query : $app->param;
-    my $bids    = $q->param('blog_ids');
     my $plugin  = $app->component('PublishingPriorities');
 
     # The `blog_ids` parameter contains array of ids being edited (CSV)
-    if ( $bids ) {
+    if ( my $bids = $q->param('blog_ids') ) {
         $plugin->blog_priority(
             map {  $_ => $q->param('blog-'.$_) } split( ',', $bids )
         );
