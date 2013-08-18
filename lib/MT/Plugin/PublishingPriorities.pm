@@ -17,17 +17,6 @@ use parent qw( MT::Plugin );
 
 use MT::PublishOption;
 use MT::Logger::Log4perl qw( get_logger l4mtdump :resurrect );
-use Data::Printer {
-    colored      => 'auto',
-    deparse      => 1,
-    sort_keys    => 1,
-    return_value => 'dump',
-    caller_info  => 1,
-    output       => 'stderr',
-    class        => {
-            expand => 2,
-	},
-};
 
 =head1 CALLBACK HANDLERS
 
