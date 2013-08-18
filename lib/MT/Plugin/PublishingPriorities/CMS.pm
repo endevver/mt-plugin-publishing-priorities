@@ -19,10 +19,46 @@ sub edit {
             $app->uri( mode => 'dashboard', args => { blog_id => 0 } ) );
     }
 
+    my @tmpls;
+    my $async = $plugin->load_async_templates( $blog_id ) || [];
+
+    foreach my $t ( @$async ) {
+        if ( $t->isa('MT::Template') ) {
+            push( @tmpls, {
+                type     => 'Index',
+                id       => $t->id,
+                name     => $t->name,
+                out      => $t->outfile,
+                priority
+                    => (    $plugin->template_priority( $t->id )
+                         // $plugin->_set_default_priority({ tmpl => $t }) ),
+            });
+        }
+        elsif ( $t->isa('MT::TemplateMap') ) {
+            my $tmpl = $app->model('template')->load( $t->template_id )
+                or next;
+
+            # Template ID and template map ID are combined to create a
+            # unique identifier.
+            my $key = $tmpl->id . ':' . $t->id;
+            push( @tmpls, {
+                id           => $key,
+                name         => $tmpl->name,
+                type         => $t->archive_type,
+                out          => $t->file_template,
+                is_preferred => $t->is_preferred,
+                priority     => (    $plugin->template_priority( $key )
+                                  // $plugin->_set_default_priority({
+                                          tmpl => $tmpl, tmpl_map => $t }) ),
+            });
+        }
+    }
+
+    # Now that we have the templates, define the template params
     my $param   = {
         blog_class    => 'blog',
         blog_id       => $blog_id,
-        tmpl_loop     => ($plugin->load_async_templates( $blog_id ) || []),
+        tmpl_loop     => \@tmpls,
         # blog priority is a gross adjustment of priority.
         blog_priority => $plugin->blog_priority( $blog_id ),
     };

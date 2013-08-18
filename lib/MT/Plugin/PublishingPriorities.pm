@@ -202,59 +202,49 @@ a particular blog which are configured to be published using the Publish Queue.
 =cut
 sub load_async_templates {
     my ( $self, $blog_id ) = @_;
-    my $app                = MT->instance;
 
-    my @tmpls;
-    my %tmpl_load_args = (
-        blog_id    => $blog_id,
-        build_type => MT::PublishOption::ASYNC(),
-    );
+    my $terms = {   blog_id    => $blog_id,
+                    build_type => MT::PublishOption::ASYNC() };
+
+    return [
+        @{ $self->_load_async_index_templates($terms)   },
+        @{ $self->_load_async_templatemaps($terms) },
+    ];
+}
+
+sub _load_async_index_templates {
+    my ( $self, $terms ) = @_;
+    my $app              = MT->instance;
 
     # Load index templates configured to use the Publish Queue.
     my $iter = $app->model('template')->load_iter(
-        { %tmpl_load_args, type => 'index' },
+        { %$terms, type => 'index' },
         { sort => [ { column => 'type', desc => 'DESC'},
                     { column => 'name', } ] }
     );
 
+    my @tmpls;
     while ( my $tmpl = $iter->() ) {
-        push @tmpls, {
-            id       => $tmpl->id,
-            name     => $tmpl->name,
-            type     => 'Index',
-            out      => $tmpl->outfile,
-            priority => (    $self->template_priority( $tmpl->id )
-                          // $self->_set_default_priority({ tmpl => $tmpl })),
-        };
+        push( @tmpls, $tmpl );
     }
-    
+    return \@tmpls;
+}
+
+sub _load_async_templatemaps {
+    my ( $self, $terms ) = @_;
+    my $app                = MT->instance;
+
     # Load archive templates configured to use the Publish Queue.
-    $iter = $app->model('templatemap')->load_iter(
-        \%tmpl_load_args,
+    my $iter = $app->model('templatemap')->load_iter(
+        $terms,
         { sort => [ { column => 'archive_type', },
                     { column => 'is_preferred', desc => 'DESC' } ] }
     );
 
+    my @tmpls;
     while ( my $tmpl_map = $iter->() ) {
-        my $tmpl = $app->model('template')->load( $tmpl_map->template_id )
-            or next;
-
-        # Template ID and template map ID are combined to create a
-        # unique identifier.
-        my $key = $tmpl->id . ':' . $tmpl_map->id;
-
-        push @tmpls, {
-            id           => $key,
-            name         => $tmpl->name,
-            type         => $tmpl_map->archive_type,
-            out          => $tmpl_map->file_template,
-            is_preferred => $tmpl_map->is_preferred,
-            priority     => (    $self->template_priority( $key )
-                              // $self->_set_default_priority({
-                                    tmpl => $tmpl, tmpl_map => $tmpl_map }) ),
-        };
+        push( @tmpls, $tmpl_map );
     }
-
     return \@tmpls;
 }
 
