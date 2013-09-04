@@ -123,14 +123,14 @@ sub _priorities {
     # Single argument, hash reference: Set multiple
     if ( ref $id eq 'HASH' ) {
         $priorities->{$_} = $id->{$_} for keys %$id;
-        $self->set_config_value('${type}_priorities', $priorities);
+        $self->set_config_value("${type}_priorities", $priorities);
         return $id;
     }
 
     # One or two arguments: Get or set individual
     if ( defined $pri ) {
         $priorities->{$id} = $pri;
-        $self->set_config_value('${type}_priorities', $priorities);
+        $self->set_config_value("${type}_priorities", $priorities);
     }
     return $priorities->{$id};
 }
