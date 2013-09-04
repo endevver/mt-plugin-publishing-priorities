@@ -13,7 +13,7 @@ callbacks:
     # Publish Queue uses the default priority, 5. Setting a higher priority will
     # ensure Publishing Priorities build_file_filter callback runs first.
     build_file_filter:
-        handler: PublishingPriorities::Plugin::callback_build_file_filter
+        handler:  MT::Plugin::PublishingPriorities::callback_build_file_filter
         priority: 2
 
 applications:
