@@ -133,9 +133,9 @@ sub system_save {
         );
     }
 
-    # Redirect back to the Edit screen.
+    # Redirect back to the System Edit screen.
     $app->redirect(
-        $app->uri( mode => 'publishing_priorities.edit',
+        $app->uri( mode => 'publishing_priorities.system_edit',
                    args    => { blog_id => 0, saved => 1 } )
     );
 }
