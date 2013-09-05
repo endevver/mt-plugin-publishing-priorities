@@ -86,9 +86,10 @@ sub save {
 
     # The `tmpl_ids` parameter contains array of ids being edited (CSV)
     if ( $tmpls ) {
-        $plugin->template_priority(
-            map {  $_ => $q->param('tmpl-'.$_) } split( ',', $tmpls )
-        );
+        # map builds an array of template IDs and priorities, but a hash needs
+        # to be passed to $plugin->template_priority to set everything.
+        my %map = map {  $_ => $q->param('tmpl-'.$_) } split( ',', $tmpls );
+        $plugin->template_priority( \%map );
     }
 
     # Redirect back to the Edit screen.
@@ -128,9 +129,10 @@ sub system_save {
 
     # The `blog_ids` parameter contains array of ids being edited (CSV)
     if ( my $bids = $q->param('blog_ids') ) {
-        $plugin->blog_priority(
-            map {  $_ => $q->param('blog-'.$_) } split( ',', $bids )
-        );
+        # map builds an array of blog IDs and priorities, but a hash needs to
+        # be passed to $plugin->blog_priority to set everything.
+        my %map = map {  $_ => $q->param('blog-'.$_) } split( ',', $bids );
+        $plugin->blog_priority( \%map );
     }
 
     # Redirect back to the System Edit screen.
